@@ -1,49 +1,32 @@
 '''
 Created on Jun 24, 2018
 
+Further Ideas:
+    * Make more efficient
+        -> hashing of pattern, hashing of sequences to compare faster (would allow MANY patterns to compare in probably near sublinear time
+        -> build  tree of patterns, then save sequences in that tree. (would allow MANY sequences to compare MANY patterns. O(logn) I guess - but probably small window size...
+        -> use a different approach to find most common patterns - not good. I am no necessarily intereted in most common patterns, more in how they differ strength-wise. 
+        -> Do some iterative approach, to filter out early patterns that are not common in any strength level anyway.
+        -> Make some kind of mutation (not moving stones, more like getting more specific or something
+        -> Find association rules. That is, moves that are played on a certain pattern!!
+        -> Visualize the patterns better (maybe create micro picture of pattern)
+        -> Visualize pattern tree
+        -> make a status bar + estimated end time
 @author: jonas
 
 '''
 
+from collections import Counter
 import random
-
-from src.move import Player
-from src.renderer import Renderer
-from src.sequenceConverter import SequenceConverter
-from src.utils import open_files
+import time
 
 import pandas as pd
-
-
-def findAllPatterns(pattern, sequences):
-    matchedSeqs = []
-        
-    for seq in sequences:
-        match = True
-        matrix = to_matrix(seq)
-        for pos in range(0, len(pattern)):
-                if pattern[pos] != Player.dontcare and matrix[pos] != pattern[pos]:
-                    match = False
-        if match:
-            matchedSeqs.append(seq)
-
-    return matchedSeqs
-
-
-def to_matrix(seq):
-    matrix = []
-    # indices are turned. Make this nicer, somehow
-    for j in range(0, window_size):
-        for i in range(0, window_size):
-            possible_move = list(filter(lambda move: move.x == i and move.y == j, seq))
-            if len(possible_move) == 0 :
-                matrix.append(Player.empty)
-            elif len(possible_move) == 1:
-                matrix.append(possible_move[0].player)
-            elif len(possible_move) >= 2: 
-                # TODO: something ko is going on...
-                matrix.append(Player.x)
-    return matrix
+from src.config import window_size, data_dir, games_dir, max_games_per_strength, nr_of_patterns, nr_of_stones, strengths, estimatedTime, \
+    estimatedTimeSetup, strengthHash
+from src.move import Player
+from src.renderer import render_matrix
+from src.sequenceConverter import file_to_sgf, create_window_seq, find_all_patterns, to_matrix_string
+from src.utils import open_files
 
 
 def gen_rand_pattern(size, nr_of_stones):
@@ -58,41 +41,37 @@ def gen_rand_pattern(size, nr_of_stones):
     return pattern
 
 
-window_size = 2
-board_size = 19
-nr_of_stones = 8
-nr_of_patterns = 10
-max_games_per_strength = 10
-games_dir = "../sgfs/"
-data_dir="../data_output/"
+#print(str(estimatedTime) + " sec estimated.")
+print(str(estimatedTime/(60*60)) + " h estimated.")
+print(str(estimatedTimeSetup) + " sec estimated for setup.")
 
-renderer = Renderer(board_size, window_size)
 
-patterns = [gen_rand_pattern(window_size, nr_of_stones) for _ in range(nr_of_patterns)]
+t = time.time()
+totalTime = t
 
-strengths = ['1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p']
-#strengths = ['1p', '2p']
+patterns = [gen_rand_pattern(window_size, nr_of_stones) for _p in range(nr_of_patterns)]
+
 seqs = []
 nr_of_games = []
 nr_of_seqs = []
 for strength in strengths:
     sgf_dir = games_dir + strength
-    files_content = open_files(sgf_dir)[:max_games_per_strength]
-    seq_conv = SequenceConverter(sgf_dir, board_size, window_size)
+    files_content = open_files(sgf_dir, max_games_per_strength)
 
     count_games = 0
     count_seq = 0
     sequences = []
     for content in files_content:
-        g = seq_conv.file_to_sgf(content)
-        s = seq_conv.create_window_seq(g)
+        g = file_to_sgf(content)
+        s = create_window_seq(g)
         sequences += s
         count_games += 1
         count_seq += len(s)
+    #sequences = list(map(lambda s: to_matrix_string(s), sequences))
+    #seqs.append(Counter(sequences))
     seqs.append(sequences)
     nr_of_games.append(count_games)
     nr_of_seqs.append(count_seq)
-    
 
 sequences = pd.DataFrame({'strength' : strengths, 'sequence' : seqs, 'nrOfGames' : nr_of_games, 'nrOfSequences' : nr_of_seqs})  
 
@@ -103,26 +82,37 @@ data_window_size = []
 data_nr_of_games = []
 data_nr_of_seqs = []
 
+nr_of_files = sequences['nrOfGames'].sum()
+print("time to read all files: total=" + str(time.time() - t) + 'sec. Per file=' + str((time.time() - t)/nr_of_files))
+t = time.time()
+
 data_freq = []
 for index, item in sequences.iterrows():
     pattern_freqs = []
+
     for pattern in patterns:
-        data_freq.append(len(findAllPatterns(pattern, item['sequence'])))
+        #t = time.time()
+        data_freq.append(len(find_all_patterns(pattern, item['sequence'])))
+        #print("time find_all_patterns per sec/250k sequences (250k is average per game): " + str(250000*(time.time() - t)/len(item['sequence'])))
+
         data_strength.append(item['strength'])
         data_nr_of_games.append(item['nrOfGames'])
         data_nr_of_seqs.append(item['nrOfSequences'])
-        data_pattern.append(renderer.render_matrix(pattern))
+        data_pattern.append(render_matrix(pattern))
         data_nr_of_stones.append(nr_of_stones)
         data_window_size.append(window_size)
-    
+
 df = pd.DataFrame({'strength' : data_strength,
                    'pattern' : data_pattern,
                    'frequency' : data_freq,
                    'nrOfStones' : data_nr_of_stones,
                    'nrOfGames' : data_nr_of_games,
                    'nrOfSequences' : data_nr_of_seqs})
-    
+
 print(df)
+
+print("total time = " + str((time.time() - totalTime)/(60*60)) + 'h')
+
 
 total_nr_games = df['nrOfGames'].sum()
 
@@ -131,6 +121,7 @@ filename += '_patterns' + str(nr_of_patterns)
 filename += '_games' + str(total_nr_games) 
 filename += '_ws' + str(window_size)
 filename += '_stones' + str(nr_of_stones) 
+filename += '_strengthHash' + str(strengthHash)
 filename += '.csv'
 
 df.to_csv(filename, index=False)
