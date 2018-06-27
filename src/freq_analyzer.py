@@ -10,12 +10,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 def make_plot(data_dir, filename):
+    ax = plt.gca()
     df = pd.read_csv(filename, index_col=False)
     df['freq_ratio'] = df['frequency'] / df['nrOfSequences']
     for pattern in df['pattern'].unique():
-        d = df[df['pattern'] == pattern]
-        ax = plt.gca()
-        d.plot(x='strength', y='freq_ratio', ax=ax)
+        df[df['pattern'] == pattern].plot(x='strength', y='freq_ratio', ax=ax)
     
     ax.legend(df['pattern'].unique())
     plt.title('frequency per sequence')
