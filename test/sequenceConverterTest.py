@@ -51,10 +51,19 @@ class Test(unittest.TestCase):
         seq = create_window_seq(game)
         matrix = to_matrix(seq[0])
         
-        m = [Player.b, Player.empty, Player.empty,
-             Player.empty, Player.b, Player.empty,
-             Player.empty, Player.empty, Player.b]
-        self.assertEquals(matrix, m) 
+        m_move1 = [Player.b, Player.empty, Player.empty,
+                   Player.empty, Player.empty, Player.empty,
+                   Player.empty, Player.empty, Player.empty]
+        
+        m_move2 = [Player.b, Player.empty, Player.empty,
+                   Player.empty, Player.b, Player.empty,
+                   Player.empty, Player.empty, Player.empty]
+        
+        m_move3 = [Player.b, Player.empty, Player.empty,
+                   Player.empty, Player.b, Player.empty,
+                   Player.empty, Player.empty, Player.b]
+        
+        self.assertEquals(matrix == m_move1 or matrix == m_move2 or matrix == m_move3) 
         
     def test_find_all_patterns(self):
         content = "(;GM[1]FF[4]  SZ[19]  GN[韩国女?围甲?赛]  DT[2017-05-07]  PB[藤泽里?]  PW[?유진]  BR[P3段]  WR[P1段]  KM[0]HA[0]RU[Japanese]AP[GNU Go:3.8]RE[B+7.5]TM[3600]TC[5]TT[40]AP[foxwq]  ;B[aa];B[bb];B[cc])"      
@@ -63,6 +72,7 @@ class Test(unittest.TestCase):
         pattern1 = ['B', '_', '_',
                    '_', 'B', '_',
                    '_', '_', 'B']
+        pattern1 = 'B___B___B'
         pattern1 = list(map(lambda p: Player(p), pattern1))
         s1 = find_all_patterns(pattern1, seq)
         self.assertEqual(len(s1), 1)

@@ -4,22 +4,24 @@ Created on Jun 24, 2018
 @author: jonas
 '''
 
-from src.config import board_size, window_size, append_prefix
+import random
+
+from src.config import board_size, window_size, append_prefix, \
+    append_only_one_point_in_time, max_nr_of_moves
 from src.move import Move, Player
-import time
+
 
 def file_to_sgf(content):
     moves = content.split(';')
     
-    # cut away header
-    moves = moves[2:]
-    
+    start_of_moves = 2
     game = []
-    for move in moves:
+    for move in moves[start_of_moves:start_of_moves+max_nr_of_moves]:
+        if(len(move) < 4):
+            continue
         if(move[0] == 'A'):
             continue
         if(move[0] not in [item.value for item in Player]):
-            print("warning, throwing away: " + move)
             continue
         player = Player(move[0])
         x = ord(move[2]) - ord('a')
@@ -37,13 +39,15 @@ def create_window_seq(game):
                 
                 # Normalize moves, so that they start at (0,0)
                 seq = list(map(lambda move: Move(move.player, move.x - i, move.y - j), seq))
-                if(len(seq) != 0):
-                    sequences.append(seq)
-                    
-                    if(append_prefix):
-                        for prefix in all_prefix(seq):
-                            sequences.append(prefix)
+                if(len(seq) == 0):
+                    continue
                 
+                seq_in_one_pos = [seq]
+                if append_prefix:
+                    seq_in_one_pos += all_prefix(seq)
+                if append_only_one_point_in_time:
+                    seq_in_one_pos = random.choice(seq_in_one_pos)
+                sequences.append(seq_in_one_pos)
     return sequences
     
 def to_matrix(seq):
@@ -74,9 +78,8 @@ def find_all_patterns(pattern, sequences):
 
     for seq in sequences:
         match = True
-        matrix = to_matrix(seq)
         for pos in range(0, len(pattern)):
-                if pattern[pos] != Player.dontcare and matrix[pos] != pattern[pos]:
+                if pattern[pos] != '?' and seq[0][pos] != pattern[pos]:
                     match = False
         if match:
             matchedSeqs.append(seq)

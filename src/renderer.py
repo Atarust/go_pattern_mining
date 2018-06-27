@@ -9,7 +9,7 @@ def render_matrix(matrix):
     string = ""
     i = 0
     for m in matrix:
-        string += str(m.value)
+        string += m
         i += 1
         if(i % window_size == 0):
             string += "\n"

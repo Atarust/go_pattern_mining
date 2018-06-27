@@ -6,15 +6,20 @@ Created on Jun 24, 2018
 
 window_size = 3
 board_size = 19
+max_nr_of_moves = 100
 nr_of_stones = 4
-nr_of_patterns = 2 # increases execution time linearly
-max_games_per_strength = 2  # is O(games*len(strengths)), but also adds time for set up
+nr_of_empty = 5
+nr_of_patterns = 10  # increases execution time linearly
+max_games_per_strength = 100  # is O(games*len(strengths)), but also adds time for set up
+nr_of_sequences = 1000000  # search most common nr_of_sequences in the given files
 games_dir = "/home/jonas/Downloads/sgf_database/"
 data_dir = "../data_output/"
 
 append_prefix = True
-strengths = ['18k','1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p']
-strengths = ['18k','1p']
+append_only_one_point_in_time = True
+strengths = ['18k', 'guest1011', 'topspin', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '1p', '2p', '9p',]
+strengths = ['18k', '1k']
+
 # execution time: t = setupTime*(games*strengths) + matchTime*patterns*(games*strengths)
 
 # 61.75 sec = 5.168 + 56.58
@@ -32,11 +37,11 @@ matchTime = 0.07
 estimatedTimeSetup = setupTime * max_games_per_strength * len(strengths)
 estimatedTime = estimatedTimeSetup + matchTime * nr_of_patterns * max_games_per_strength * len(strengths)
 
+
 def deterministic_hash(string):
     h = sum(map(lambda char : ord(char), string))
-    return h*h*h*h
+    return h * h * h * h
+
 
 strengthHash = sum(map(lambda s : int(deterministic_hash(s)), strengths))
-
-
 

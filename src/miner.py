@@ -12,123 +12,107 @@ Further Ideas:
         -> Visualize the patterns better (maybe create micro picture of pattern)
         -> Visualize pattern tree
         -> make a status bar + estimated end time
+        -> normalize pattern, so that reflection, turning, mirror and color does not matter
+        -> extract patterns from most occuring sequences - if you do it for all strengths, you could select randomly 10 pattern out of 100 most occuring patterns per strength.
 @author: jonas
 
 '''
 
 from collections import Counter
 import random
-import time
 
 import pandas as pd
 from src.config import window_size, data_dir, games_dir, max_games_per_strength, nr_of_patterns, nr_of_stones, strengths, estimatedTime, \
-    estimatedTimeSetup, strengthHash
-from src.move import Player
-from src.renderer import render_matrix
+    estimatedTimeSetup, strengthHash, nr_of_sequences, nr_of_empty
+from src.freq_analyzer import make_plot
 from src.sequenceConverter import file_to_sgf, create_window_seq, find_all_patterns, to_matrix_string
 from src.utils import open_files
 
 
-def gen_rand_pattern(size, nr_of_stones):
-    set_stone = 0
-    pattern = [Player.dontcare] * (size * size)
-    while set_stone < nr_of_stones and set_stone < size * size:
-        pos = random.randint(0, len(pattern) - 1)
-        if(pattern[pos] == Player.dontcare):
-            # is free
-            pattern[pos] = random.choice([Player.b, Player.w])
-            set_stone += 1
-    return pattern
-
-
-#print(str(estimatedTime) + " sec estimated.")
-print(str(estimatedTime/(60*60)) + " h estimated.")
-print(str(estimatedTimeSetup) + " sec estimated for setup.")
-
-
-t = time.time()
-totalTime = t
-
-patterns = [gen_rand_pattern(window_size, nr_of_stones) for _p in range(nr_of_patterns)]
-
-seqs = []
-nr_of_games = []
-nr_of_seqs = []
-for strength in strengths:
-    sgf_dir = games_dir + strength
-    files_content = open_files(sgf_dir, max_games_per_strength)
-
-    count_games = 0
-    count_seq = 0
-    sequences = []
-    for content in files_content:
-        g = file_to_sgf(content)
-        s = create_window_seq(g)
-        sequences += s
-        count_games += 1
-        count_seq += len(s)
-    #sequences = list(map(lambda s: to_matrix_string(s), sequences))
-    #seqs.append(Counter(sequences))
-    seqs.append(sequences)
-    nr_of_games.append(count_games)
-    nr_of_seqs.append(count_seq)
-
-sequences = pd.DataFrame({'strength' : strengths, 'sequence' : seqs, 'nrOfGames' : nr_of_games, 'nrOfSequences' : nr_of_seqs})  
-
-data_strength = []
-data_pattern = []
-data_nr_of_stones = []
-data_window_size = []
-data_nr_of_games = []
-data_nr_of_seqs = []
-
-nr_of_files = sequences['nrOfGames'].sum()
-print("time to read all files: total=" + str(time.time() - t) + 'sec. Per file=' + str((time.time() - t)/nr_of_files))
-t = time.time()
-
-data_freq = []
-for index, item in sequences.iterrows():
-    pattern_freqs = []
-
-    for pattern in patterns:
-        #t = time.time()
-        data_freq.append(len(find_all_patterns(pattern, item['sequence'])))
-        #print("time find_all_patterns per sec/250k sequences (250k is average per game): " + str(250000*(time.time() - t)/len(item['sequence'])))
-
-        data_strength.append(item['strength'])
-        data_nr_of_games.append(item['nrOfGames'])
-        data_nr_of_seqs.append(item['nrOfSequences'])
-        data_pattern.append(render_matrix(pattern))
-        data_nr_of_stones.append(nr_of_stones)
-        data_window_size.append(window_size)
-
-df = pd.DataFrame({'strength' : data_strength,
-                   'pattern' : data_pattern,
-                   'frequency' : data_freq,
-                   'nrOfStones' : data_nr_of_stones,
-                   'nrOfGames' : data_nr_of_games,
-                   'nrOfSequences' : data_nr_of_seqs})
-
-print(df)
-
-print("total time = " + str((time.time() - totalTime)/(60*60)) + 'h')
-
-
-total_nr_games = df['nrOfGames'].sum()
-
-filename = data_dir + 'freqs'
-filename += '_patterns' + str(nr_of_patterns) 
-filename += '_games' + str(total_nr_games) 
-filename += '_ws' + str(window_size)
-filename += '_stones' + str(nr_of_stones) 
-filename += '_strengthHash' + str(strengthHash)
-filename += '.csv'
-
-df.to_csv(filename, index=False)
-
-# User pattern
-# pattern = ['_', '_', 'B',
-#           '_', '_', 'B',
-#           '_', '_', 'B']
-# pattern = list(map(lambda p: Player(p), pattern))
+def createSequences():
+    seqs = []
+    nr_of_games = []
+    nr_of_seqs = []
+    for strength in strengths:
+        sgf_dir = games_dir + strength
+        files_content = open_files(sgf_dir, max_games_per_strength)
+        count_games = 0
+        count_seq = 0
+        sequences = []
+        for content in files_content:
+            g = file_to_sgf(content)
+            s = create_window_seq(g)
+            sequences += s
+            count_games += 1
+            count_seq += len(s)
+        
+        sequences = list(map(lambda s:to_matrix_string(s), sequences))
+        sequences = Counter(sequences)
+        sequences = sequences.most_common(nr_of_sequences)
+        seqs.append(sequences)
+        nr_of_games.append(count_games)
+        nr_of_seqs.append(count_seq)
     
+    sequences = pd.DataFrame({'strength':strengths, 'sequence':seqs, 'nrOfGames':nr_of_games, 'nrOfSequences':nr_of_seqs})
+    return sequences
+
+def create_frequencies(patterns, sequences):
+    data_strength = []
+    data_pattern = []
+    data_nr_of_stones = []
+    data_window_size = []
+    data_nr_of_games = []
+    data_nr_of_seqs = []
+    data_freq = []
+    for _index, item in sequences.iterrows():
+        for pattern in patterns:
+            freq_of_pattern = sum(map(lambda pattern_freq:pattern_freq[1], find_all_patterns(pattern, item['sequence'])))
+            data_freq.append(freq_of_pattern)
+            data_strength.append(item['strength'])
+            data_nr_of_games.append(item['nrOfGames'])
+            data_nr_of_seqs.append(item['nrOfSequences'])
+            data_pattern.append(pattern)
+            data_nr_of_stones.append(nr_of_stones)
+            data_window_size.append(window_size)
+    
+    df = pd.DataFrame({'strength':data_strength,
+            'pattern':data_pattern,
+            'frequency':data_freq,
+            'nrOfStones':data_nr_of_stones,
+            'nrOfGames':data_nr_of_games,
+            'nrOfSequences':data_nr_of_seqs})
+    return df
+
+
+def gen_rand_pattern(size, nr_of_stones):
+    nr_of_white = random.randint(0, nr_of_stones)
+    nr_of_black = nr_of_stones - nr_of_white
+    
+    pattern = 'W' * nr_of_white
+    pattern += 'B' * nr_of_black
+    pattern += '_' * nr_of_empty
+    pattern += '?' * (size * size - len(pattern))
+    l = list(pattern)
+    random.shuffle(l)
+    return ''.join(l)
+
+if __name__ == '__main__':
+    print(str(estimatedTime) + " sec estimated.")
+    print(str(estimatedTimeSetup) + " sec estimated for setup.")
+    
+    patterns = [gen_rand_pattern(window_size, nr_of_stones) for _p in range(nr_of_patterns)]
+    sequences = createSequences()  
+    df = create_frequencies(patterns, sequences)
+    print(df)
+    total_nr_games = df['nrOfGames'].sum()
+    
+    filename = 'freqs'
+    filename += '_patterns' + str(nr_of_patterns) 
+    filename += '_games' + str(total_nr_games) 
+    filename += '_ws' + str(window_size)
+    filename += '_stones' + str(nr_of_stones) 
+    filename += '_strengthHash' + str(strengthHash)
+    filename += '.csv'
+    
+    df.to_csv(data_dir + filename, index=False)
+    make_plot(data_dir, data_dir + filename)
