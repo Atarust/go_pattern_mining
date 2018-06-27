@@ -25,6 +25,7 @@ import pandas as pd
 from src.config import window_size, data_dir, games_dir, max_games_per_strength, nr_of_patterns, nr_of_stones, strengths, estimatedTime, \
     estimatedTimeSetup, strengthHash, nr_of_sequences, nr_of_empty
 from src.freq_analyzer import make_plot
+from src.move import Player
 from src.sequenceConverter import file_to_sgf, create_window_seq, find_all_patterns, to_matrix_string
 from src.utils import open_files
 
@@ -88,10 +89,10 @@ def gen_rand_pattern(size, nr_of_stones):
     nr_of_white = random.randint(0, nr_of_stones)
     nr_of_black = nr_of_stones - nr_of_white
     
-    pattern = 'W' * nr_of_white
-    pattern += 'B' * nr_of_black
-    pattern += '_' * nr_of_empty
-    pattern += '?' * (size * size - len(pattern))
+    pattern = Player.w.value * nr_of_white
+    pattern += Player.b.value * nr_of_black
+    pattern += Player.empty.value * nr_of_empty
+    pattern += Player.dontcare.value * (size * size - len(pattern))
     l = list(pattern)
     random.shuffle(l)
     return ''.join(l)
