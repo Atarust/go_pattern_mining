@@ -121,6 +121,11 @@ if __name__ == '__main__':
     print('nr_of_patterns:'  + str(nr_of_patterns) + ', ' + 'max_games_per_strength:' + str(max_games_per_strength))
     
     patterns = [gen_rand_pattern(window_size, nr_of_stones) for _p in range(nr_of_patterns)]
+    # create some intermediate patterns
+    for intermediate in range(nr_of_intermediates):
+        stones = random.randint(1,nr_of_stones)
+        patterns.append(gen_rand_pattern(window_size, stones))
+    
     sequences = createSequences()  
     sequences['nrOfStones'] = nr_of_stones
     sequences['window_size'] = window_size
