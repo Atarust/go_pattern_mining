@@ -8,16 +8,20 @@ import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from src.config import window_size, data_dir
+
 
 def make_plot(data_dir, filename):
     ax = plt.gca()
-    df = pd.read_csv(filename, index_col=False)
-    df['freq_ratio'] = df['frequency'] / df['nrOfSequences']
-    for pattern in df['pattern'].unique():
-        df[df['pattern'] == pattern].plot(x='strength', y='freq_ratio', ax=ax)
+    sequences = pd.read_csv(filename, index_col=False)
+    sequences['freq_ratio'] = sequences['frequency'] / sequences['nrOfSequences']
+    for pattern in sequences['pattern'].unique():
+        if pattern != '?' *(window_size*window_size): # TODO refactor
+            sequences[sequences['pattern'] == pattern].plot(x='strength', y='freq_ratio', ax=ax)
     
-    ax.legend(df['pattern'].unique())
     plt.title('frequency per sequence')
+    plt.legend(sequences['pattern'].unique().tolist())
+    
 
     filename = filename.split('/')[-1]
     filename = filename.split('.')[-2]
