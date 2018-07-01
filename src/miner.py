@@ -133,7 +133,7 @@ if __name__ == '__main__':
     sequences['PatternTree'] = pd.Series([create_pattern_tree(patterns) for s in sequences.count()])
     
     sequences = create_frequencies(sequences)
-    
+    sequences['freq_ratio'] = sequences['frequency'] / sequences['nrOfSequences']
     total_nr_games = sequences['nrOfGames'].sum()
     
     filename = 'freqs'
