@@ -26,12 +26,13 @@ import pandas as pd
 from src import pattern_tree
 from src.config import window_size, data_dir, games_dir, max_games_per_strength, nr_of_patterns, nr_of_stones, strengths, estimatedTime, \
     estimatedTimeSetup, strengthHash, nr_of_empty, max_common_sequences, \
-    nr_of_intermediates
+    nr_of_intermediates, min_freq, min_freq_change
 from src.freq_analyzer import make_plot
 from src.move import Player
 from src.pattern_tree import PatternTree
 from src.sequenceConverter import file_to_sgf, create_window_seq, to_matrix_string
 from src.utils import open_files
+
 
 def createSequences():
     seqs_strength = []
@@ -83,11 +84,10 @@ def create_frequencies(sequences):
             freq_data.append(freq)
             strength_data.append(strength)
             pattern_data.append(pattern)
-            nr_games_data.append(sequences[sequences['strength']==strength]['nrOfGames'].mean())
-            nr_sequences_data.append(sequences[sequences['strength']==strength]['nrOfSequences'].mean())
+            nr_games_data.append(sequences[sequences['strength'] == strength]['nrOfGames'].mean())
+            nr_sequences_data.append(sequences[sequences['strength'] == strength]['nrOfSequences'].mean())
 
-
-    df = pd.DataFrame({'pattern':pattern_data, 'strength':strength_data,'nrOfGames':nr_games_data, 'nrOfSequences':nr_sequences_data, 'frequency':freq_data})
+    df = pd.DataFrame({'pattern':pattern_data, 'strength':strength_data, 'nrOfGames':nr_games_data, 'nrOfSequences':nr_sequences_data, 'frequency':freq_data})
     df['nrOfStones'] = nr_of_stones
     df['window_size'] = window_size
 
@@ -106,24 +106,59 @@ def gen_rand_pattern(size, nr_of_stones):
     random.shuffle(l)
     return ''.join(l)
 
+
 def create_pattern_tree(patterns):
     root = pattern_tree.get_root()
     for pattern in patterns:
         root.insert_patternTree(PatternTree(pattern))
     return root
 
+
 def insert_in_tree(pattern_tree, strength):
     for _index, seq_per_strength  in sequences[sequences['strength'] == strength].iterrows():
         for seq_counted in seq_per_strength['sequence']:
             pattern_tree.insert_sequence_counted(seq_counted)
 
+
+def row_should_be_removed(remove_patterns, row):
+    return not remove_patterns.count(row['pattern']) > 0
+
+def remove_infrequent_patterns(sequences):
+    # a pattern is not interesting, if it is not frequent in at least one strength
+    remove_patterns = []
+    for pattern  in sequences['pattern'].unique():
+        s = sequences[sequences['pattern'] == pattern]
+        highest_freq = s['freq_ratio'].max()
+        if highest_freq < min_freq:
+            remove_patterns.append(pattern)
+    
+    new_s = sequences
+    for p in remove_patterns:
+        new_s = new_s[new_s['pattern'] != p]
+    return new_s
+
+
+def remove_non_changing_patterns(sequences):
+    # a pattern is not interesting, if it is not frequent in at least one strength
+    remove_patterns = []
+    for pattern  in sequences['pattern'].unique():
+        s = sequences[sequences['pattern'] == pattern]
+        if (s['freq_ratio'].max() - s['freq_ratio'].min()) < min_freq_change:
+            remove_patterns.append(pattern)
+    
+    new_s = sequences
+    for p in remove_patterns:
+        new_s = new_s[new_s['pattern'] != p]
+    return new_s
+
+
 if __name__ == '__main__':
-    print('nr_of_patterns:'  + str(nr_of_patterns) + ', ' + 'max_games_per_strength:' + str(max_games_per_strength))
+    print('nr_of_patterns:' + str(nr_of_patterns) + ', ' + 'max_games_per_strength:' + str(max_games_per_strength))
     
     patterns = [gen_rand_pattern(window_size, nr_of_stones) for _p in range(nr_of_patterns)]
     # create some intermediate patterns
     for intermediate in range(nr_of_intermediates):
-        stones = random.randint(1,nr_of_stones)
+        stones = random.randint(1, nr_of_stones)
         patterns.append(gen_rand_pattern(window_size, stones))
     
     sequences = createSequences()  
