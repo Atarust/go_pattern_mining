@@ -14,6 +14,7 @@ class PatternTree(object):
         self.sequences_counted = []
     
     def __is_at_least_as_general_as(self, other_pattern):
+        assert(len(self.pattern) == len(other_pattern)), str(len(self.pattern)) +  ' ' + str(len(other_pattern))
         # make sure sizes are correct?
         for pos in range(len(other_pattern)):
             if self.pattern[pos] != '?' and self.pattern[pos] != other_pattern[pos]:

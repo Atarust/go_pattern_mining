@@ -3,9 +3,7 @@ Created on Jun 24, 2018
 
 Further Ideas:
     * Make more efficient
-        -> hashing of pattern, hashing of sequences to compare faster (would allow MANY patterns to compare in probably near sublinear time
-        -> build  tree of patterns, then save sequences in that tree. (would allow MANY sequences to compare MANY patterns. O(logn) I guess - but probably small window size...
-        -> use a different approach to find most common patterns - not good. I am no necessarily intereted in most common patterns, more in how they differ strength-wise. 
+        -> use a different approach to find most common patterns - not good. I am no necessarily interested in most common patterns, more in how they differ strength-wise. 
         -> Do some iterative approach, to filter out early patterns that are not common in any strength level anyway.
         -> Make some kind of mutation (not moving stones, more like getting more specific or something
         -> Find association rules. That is, moves that are played on a certain pattern!!
@@ -15,23 +13,31 @@ Further Ideas:
         -> normalize pattern, so that reflection, turning, mirror and color does not matter
         -> extract patterns from most occuring sequences - if you do it for all strengths, you could select randomly 10 pattern out of 100 most occuring patterns per strength.
         -> postprocessing: reduce number of patterns by finding meaningful patterns - those with a min occurence in at least one strength and who have a min variance (max_occ_per_strength - min_occ_strength)
+        -> make root variable such that one could specifiy another root to investigate certain subset of patterns.
 @author: jonas
 
 '''
 
 from collections import Counter
-import random
+import random, os
 
 import pandas as pd
 from src import pattern_tree
 from src.config import window_size, data_dir, games_dir, max_games_per_strength, nr_of_patterns, nr_of_stones, strengths, estimatedTime, \
-    estimatedTimeSetup, strengthHash, nr_of_empty, max_common_sequences, \
-    nr_of_intermediates, min_freq, min_freq_change
+     strengthHash, nr_of_empty, max_common_sequences, \
+    nr_of_intermediates
 from src.freq_analyzer import make_plot
 from src.move import Player
 from src.pattern_tree import PatternTree
 from src.sequenceConverter import file_to_sgf, create_window_seq, to_matrix_string
 from src.utils import open_files
+
+
+def insert_in_tree(pattern_tree, strength):
+    #print(pattern_tree)
+    for _index, seq_per_strength  in sequences[sequences['strength'] == strength].iterrows():
+        for seq_counted in seq_per_strength['sequence']:
+            pattern_tree.insert_sequence_counted(seq_counted)
 
 
 def createSequences():
@@ -63,7 +69,6 @@ def createSequences():
 
 
 def create_frequencies(sequences):
-
     # sort frequencies into PatternTrees
     sequences.apply(lambda row: insert_in_tree(row['PatternTree'], row['strength']), axis=1)
     patterns = sequences['PatternTree'].iloc[0].get_patterns()
@@ -95,6 +100,8 @@ def create_frequencies(sequences):
 
 
 def gen_rand_pattern(size, nr_of_stones):
+    if nr_of_stones+nr_of_empty > size*size:
+        raise Exception('ey, stupid! nr_of_stones needs to be below window size')
     nr_of_white = random.randint(0, nr_of_stones)
     nr_of_black = nr_of_stones - nr_of_white
     
@@ -104,6 +111,7 @@ def gen_rand_pattern(size, nr_of_stones):
     pattern += Player.dontcare.value * (size * size - len(pattern))
     l = list(pattern)
     random.shuffle(l)
+    assert len(pattern) == window_size*window_size, pattern
     return ''.join(l)
 
 
@@ -112,44 +120,6 @@ def create_pattern_tree(patterns):
     for pattern in patterns:
         root.insert_patternTree(PatternTree(pattern))
     return root
-
-
-def insert_in_tree(pattern_tree, strength):
-    for _index, seq_per_strength  in sequences[sequences['strength'] == strength].iterrows():
-        for seq_counted in seq_per_strength['sequence']:
-            pattern_tree.insert_sequence_counted(seq_counted)
-
-
-def row_should_be_removed(remove_patterns, row):
-    return not remove_patterns.count(row['pattern']) > 0
-
-def remove_infrequent_patterns(sequences):
-    # a pattern is not interesting, if it is not frequent in at least one strength
-    remove_patterns = []
-    for pattern  in sequences['pattern'].unique():
-        s = sequences[sequences['pattern'] == pattern]
-        highest_freq = s['freq_ratio'].max()
-        if highest_freq < min_freq:
-            remove_patterns.append(pattern)
-    
-    new_s = sequences
-    for p in remove_patterns:
-        new_s = new_s[new_s['pattern'] != p]
-    return new_s
-
-
-def remove_non_changing_patterns(sequences):
-    # a pattern is not interesting, if it is not frequent in at least one strength
-    remove_patterns = []
-    for pattern  in sequences['pattern'].unique():
-        s = sequences[sequences['pattern'] == pattern]
-        if (s['freq_ratio'].max() - s['freq_ratio'].min()) < min_freq_change:
-            remove_patterns.append(pattern)
-    
-    new_s = sequences
-    for p in remove_patterns:
-        new_s = new_s[new_s['pattern'] != p]
-    return new_s
 
 
 if __name__ == '__main__':
@@ -165,7 +135,7 @@ if __name__ == '__main__':
     sequences['nrOfStones'] = nr_of_stones
     sequences['window_size'] = window_size
     # create trees with patterns
-    sequences['PatternTree'] = pd.Series([create_pattern_tree(patterns) for s in sequences.count()])
+    sequences['PatternTree'] = pd.Series([create_pattern_tree(patterns) for s in range(len(sequences))])
     
     sequences = create_frequencies(sequences)
     sequences['freq_ratio'] = sequences['frequency'] / sequences['nrOfSequences']
@@ -179,6 +149,7 @@ if __name__ == '__main__':
     filename += '_strengthHash' + str(strengthHash)
     filename += '.csv'
     
-    print(sequences)
+    #print(sequences)
     sequences.to_csv(data_dir + filename, index=False)
     make_plot(data_dir, data_dir + filename)
+    os.system("beep -f 555 -l 460")
