@@ -22,12 +22,12 @@ class Test(unittest.TestCase):
     def test_insert_patternTree(self):
         pt = pattern_tree.get_root()
         pt.insert_patternTree(PatternTree('wwww'))
-        self.assertEqual(len(pt.children), 1)
-        self.assertTrue(pt.children[0].pattern == 'wwww')
+        self.assertEqual(len(pt.children), 1, pt)
+        self.assertEqual(pt.children[0].pattern, 'wwww')
         
         pt.insert_patternTree(PatternTree('wwww'))
-        self.assertEqual(len(pt.children), 1)
-        self.assertTrue(pt.children[0].pattern == 'wwww')
+        self.assertEqual(len(pt.children), 1, pt)
+        self.assertEqual(pt.children[0].pattern, 'wwww')
 
         pt.insert_patternTree(PatternTree('wwwb'))
         self.assertEqual(len(pt.children), 2)
@@ -91,10 +91,45 @@ class Test(unittest.TestCase):
         self.assertEqual(pt.get_frequency_of_pattern('ww??'), 0, 'Can count pattern only if it is in pattern tree')
         pt.insert_patternTree(PatternTree('ww??'))
         self.assertEqual(pt.get_frequency_of_pattern('ww??'), 10, 'Gets sorted into to most specific pattern, even if pattern is added after the sequence')
+    
+    def test_balance_tree_split(self):
+        pt = pattern_tree.get_root()
+        for p in ['ww??']:
+            pt.insert_patternTree(PatternTree(p))
+        
+        pt.insert_sequence_counted(('wwbw', 1000))
+        pt.insert_sequence_counted(('wwbb', 1000))
+        self.assertEqual(len(pt.children[0].children), 0)
+        
+        pt.balance_tree()
+        self.assertEqual(len(pt.children[0].children), 1)
+        self.assertEqual(len(pt.children[0].children[0].children), 1)
+        self.assertEqual(len(pt.children[0].children[0].children[0].children), 0)
+        
+        self.assertTrue(pt.children[0].children[0].children[0].pattern == 'wwbb' or pt.children[0].children[0].children[0].pattern == 'wwbw')
+        
+    def test_balance_tree_merge(self):
+        pt = pattern_tree.get_root()
+        for p in ['wwww','wwwb', 'www?']:
+            pt.insert_patternTree(PatternTree(p))
+        
+        pt.insert_sequence_counted(('wwbw', 5))
+        pt.insert_sequence_counted(('wwbb', 5))
+        self.assertEqual(len(pt.children[0].children), 2)
+        
+        pt.balance_tree()
+        self.assertEqual(len(pt.children[0].children), 0)
+        
+        
+    def test_generality(self):
+        self.assertTrue(PatternTree.is_at_least_as_general_as_pattern('wwww', 'wwww'))
+        self.assertTrue(PatternTree.is_at_least_as_general_as_pattern('www?', 'wwww'))
+        self.assertTrue(PatternTree.is_at_least_as_general_as_pattern('ww??', 'www?'))
+        self.assertFalse(PatternTree.is_at_least_as_general_as_pattern('ww??', 'bww?'))
+        self.assertFalse(PatternTree.is_at_least_as_general_as_pattern('bw?w', 'bww?'))
         
         
         
-
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testInit']
