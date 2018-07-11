@@ -4,6 +4,10 @@ Created on Jun 24, 2018
 @author: jonas
 '''
 
+# tree balancing
+min_seq_per_subtree = 10 #TODO turn off, if user specifies pattern
+max_seq_per_node = 500
+
 window_size = 3
 board_size = 19
 max_nr_of_moves = 150

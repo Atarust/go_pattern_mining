@@ -37,7 +37,7 @@ def insert_in_tree(pattern_tree, strength):
     #print(pattern_tree)
     for _index, seq_per_strength  in sequences[sequences['strength'] == strength].iterrows():
         for seq_counted in seq_per_strength['sequence']:
-            pattern_tree.insert_sequence_counted(seq_counted)
+            pattern_tree.insert_sequence_counted(seq_counted, strength)
 
 
 def createSequences():
@@ -68,15 +68,14 @@ def createSequences():
     return sequences
 
 
-def create_frequencies(sequences):
+def create_frequencies(sequences, patternTree):
     # sort frequencies into PatternTrees
-    sequences.apply(lambda row: insert_in_tree(row['PatternTree'], row['strength']), axis=1)
-    patterns = sequences['PatternTree'].iloc[0].get_patterns()
+    sequences.apply(lambda row: insert_in_tree(patternTree, row['strength']), axis=1)
     
-    def get_freq(sequences, pattern, strength):
-        s = sequences[sequences['strength'] == strength]['PatternTree'].iloc[0]
-        # TODO what if there is a strength multiple times? -> Ignore!
-        return s.get_frequency_of_pattern(pattern)
+    patterns = patternTree.get_patterns()
+    
+    def get_freq(patternTree, pattern, strength):
+        return patternTree.get_frequency_of_pattern(pattern, strength)
     
     pattern_data = []
     freq_data = []
@@ -85,7 +84,7 @@ def create_frequencies(sequences):
     nr_sequences_data = []
     for pattern in patterns:
         for strength in strengths:
-            freq = get_freq(sequences, pattern, strength)
+            freq = get_freq(patternTree, pattern, strength)
             freq_data.append(freq)
             strength_data.append(strength)
             pattern_data.append(pattern)
@@ -134,10 +133,9 @@ if __name__ == '__main__':
     sequences = createSequences()  
     sequences['nrOfStones'] = nr_of_stones
     sequences['window_size'] = window_size
-    # create trees with patterns
-    sequences['PatternTree'] = pd.Series([create_pattern_tree(patterns) for s in range(len(sequences))])
+    patternTree = create_pattern_tree(patterns)
     
-    sequences = create_frequencies(sequences)
+    sequences = create_frequencies(sequences, patternTree)
     sequences['freq_ratio'] = sequences['frequency'] / sequences['nrOfSequences']
     total_nr_games = sequences['nrOfGames'].sum()
     

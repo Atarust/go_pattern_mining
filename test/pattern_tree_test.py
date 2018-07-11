@@ -6,6 +6,7 @@ Created on Jun 28, 2018
 import unittest
 
 from src import pattern_tree
+from src.config import strengths, max_seq_per_node
 from src.pattern_tree import PatternTree
 
 
@@ -47,58 +48,83 @@ class Test(unittest.TestCase):
         pt.insert_patternTree(PatternTree('bw??'))
         pt.insert_patternTree(PatternTree('b??w'))
         self.assertEqual(len(pt.children), 3)
-        
+
     def test_sequence_counted(self):
+        strength = '1k'
         pt = pattern_tree.get_root()
         for p in ['wwww', 'wwwb', 'www?']:
             pt.insert_patternTree(PatternTree(p))
         
-        self.assertEqual(pt.get_frequency_of_pattern('wwww'), 0)
-        pt.insert_sequence_counted(('wwww', 10))
-        self.assertEqual(pt.get_frequency_of_pattern('wwww'), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength), 0)
+        pt.insert_sequence_counted(('wwww', 10), '1k')
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength), 10)
         
-        self.assertEqual(pt.get_frequency_of_pattern('www?'), 10)
-        pt.insert_sequence_counted(('wwwb', 20))
-        self.assertEqual(pt.get_frequency_of_pattern('wwww'), 10)
-        self.assertEqual(pt.get_frequency_of_pattern('wwwb'), 20)
-        self.assertEqual(pt.get_frequency_of_pattern('www?'), 30)
-        self.assertEqual(pt.get_frequency_of_pattern('????'), 30)
+        self.assertEqual(pt.get_frequency_of_pattern('www?', strength), 10)
+        pt.insert_sequence_counted(('wwwb', 20), '1k')
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('wwwb', strength), 20)
+        self.assertEqual(pt.get_frequency_of_pattern('www?', strength), 30)
+        self.assertEqual(pt.get_frequency_of_pattern('????', strength), 30)
         
-        
-        pt.insert_sequence_counted(('wwwb', 20))
-        self.assertEqual(pt.get_frequency_of_pattern('www?'), 50)
+        pt.insert_sequence_counted(('wwwb', 20), '1k')
+        self.assertEqual(pt.get_frequency_of_pattern('www?', strength), 50)
         
         pt = pattern_tree.get_root()
         pt.insert_patternTree(PatternTree('wb??'))
         pt.insert_patternTree(PatternTree('bw??'))
         pt.insert_patternTree(PatternTree('b??w'))
         self.assertEqual(len(pt.children), 3)
-        pt.insert_sequence_counted(('wbwb', 10))
-        self.assertEqual(pt.get_frequency_of_pattern('wb??'), 10)
-        self.assertEqual(pt.get_frequency_of_pattern('w???'), 10)
-        self.assertEqual(pt.get_frequency_of_pattern('????'), 10)
-        self.assertEqual(pt.get_frequency_of_pattern('b??w'), 0)
+        pt.insert_sequence_counted(('wbwb', 10), strength)
+        self.assertEqual(pt.get_frequency_of_pattern('wb??', strength), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('w???', strength), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('????', strength), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('b??w', strength), 0)
         
-        pt.insert_sequence_counted(('wbww', 20))
-        self.assertEqual(pt.get_frequency_of_pattern('wb??'), 30)
-        self.assertEqual(pt.get_frequency_of_pattern('w???'), 30)
-        self.assertEqual(pt.get_frequency_of_pattern('????'), 30)
-        
+        pt.insert_sequence_counted(('wbww', 20), strength)
+        self.assertEqual(pt.get_frequency_of_pattern('wb??', strength), 30)
+        self.assertEqual(pt.get_frequency_of_pattern('w???', strength), 30)
+        self.assertEqual(pt.get_frequency_of_pattern('????', strength), 30)
         
         pt = pattern_tree.get_root()
         pt.insert_patternTree(PatternTree('www?'))
-        pt.insert_sequence_counted(('wwbb', 10))
-        self.assertEqual(pt.get_frequency_of_pattern('ww??'), 0, 'Can count pattern only if it is in pattern tree')
+        pt.insert_sequence_counted(('wwbb', 10), strength)
+        self.assertEqual(pt.get_frequency_of_pattern('ww??', strength), 0, 'Can count pattern only if it is in pattern tree')
         pt.insert_patternTree(PatternTree('ww??'))
-        self.assertEqual(pt.get_frequency_of_pattern('ww??'), 10, 'Gets sorted into to most specific pattern, even if pattern is added after the sequence')
+        self.assertEqual(pt.get_frequency_of_pattern('ww??', strength), 10, 'Gets sorted into to most specific pattern, even if pattern is added after the sequence')
     
+    def test_sequence_counted_multiple_strengths(self):
+        strength1 = '1k'
+        strength2 = '18k'
+        
+        assert strengths.count(strength1) == 1
+        assert strengths.count(strength2) == 1
+        
+        pt = pattern_tree.get_root()
+        for p in ['wwww', 'wwwb', 'www?']:
+            pt.insert_patternTree(PatternTree(p))
+        
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength1), 0)
+        pt.insert_sequence_counted(('wwww', 10), strength1)
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength1), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength2), 0)
+        
+        self.assertEqual(pt.get_frequency_of_pattern('www?', strength1), 10)
+        pt.insert_sequence_counted(('wwwb', 20), strength1)
+        pt.insert_sequence_counted(('wwwb', 22), strength2)
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength1), 10)
+        self.assertEqual(pt.get_frequency_of_pattern('wwww', strength2), 0)
+        
+        self.assertEqual(pt.get_frequency_of_pattern('wwwb', strength1), 20)
+        self.assertEqual(pt.get_frequency_of_pattern('wwwb', strength2), 22)
+        
     def test_balance_tree_split(self):
+        strength = '1k'
         pt = pattern_tree.get_root()
         for p in ['ww??']:
             pt.insert_patternTree(PatternTree(p))
         
-        pt.insert_sequence_counted(('wwbw', 1000))
-        pt.insert_sequence_counted(('wwbb', 1000))
+        pt.insert_sequence_counted(('wwbw', 1000), strength)
+        pt.insert_sequence_counted(('wwbb', 1000), strength)
         self.assertEqual(len(pt.children[0].children), 0)
         
         pt.balance_tree()
@@ -107,19 +133,46 @@ class Test(unittest.TestCase):
         self.assertEqual(len(pt.children[0].children[0].children[0].children), 0)
         
         self.assertTrue(pt.children[0].children[0].children[0].pattern == 'wwbb' or pt.children[0].children[0].children[0].pattern == 'wwbw')
+    
+    def test_split_not_executed_if_sequences_divided_over_different_strengths(self):
+        strength1 = '1k'
+        strength2 = '18k'
         
-    def test_balance_tree_merge(self):
+        assert max_seq_per_node > 300
+        assert max_seq_per_node < 300 * 2
+        
         pt = pattern_tree.get_root()
-        for p in ['wwww','wwwb', 'www?']:
+        for p in ['ww??']:
             pt.insert_patternTree(PatternTree(p))
         
-        pt.insert_sequence_counted(('wwbw', 5))
-        pt.insert_sequence_counted(('wwbb', 5))
+        pt.insert_sequence_counted(('wwbw', 300), strength1)
+        pt.insert_sequence_counted(('wwbb', 300), strength2)
+        self.assertEqual(len(pt.children[0].children), 0)
+        
+        pt.balance_tree()
+        was_balanced = len(pt.children[0].children) == 0
+        self.assertTrue(was_balanced)
+        
+        pt.insert_sequence_counted(('wwbw', 300), strength1)
+        pt.insert_sequence_counted(('wwbb', 300), strength2)
+        self.assertEqual(len(pt.children[0].children), 0)
+        
+        pt.balance_tree()
+        was_balanced = len(pt.children[0].children) == 0        
+        self.assertFalse(was_balanced)
+            
+    def test_balance_tree_merge(self):
+        strength = '1k'
+        pt = pattern_tree.get_root()
+        for p in ['wwww', 'wwwb', 'www?']:
+            pt.insert_patternTree(PatternTree(p))
+        
+        pt.insert_sequence_counted(('wwbw', 5), strength)
+        pt.insert_sequence_counted(('wwbb', 5), strength)
         self.assertEqual(len(pt.children[0].children), 2)
         
         pt.balance_tree()
         self.assertEqual(len(pt.children[0].children), 0)
-        
         
     def test_generality(self):
         self.assertTrue(PatternTree.is_at_least_as_general_as_pattern('wwww', 'wwww'))
@@ -127,8 +180,6 @@ class Test(unittest.TestCase):
         self.assertTrue(PatternTree.is_at_least_as_general_as_pattern('ww??', 'www?'))
         self.assertFalse(PatternTree.is_at_least_as_general_as_pattern('ww??', 'bww?'))
         self.assertFalse(PatternTree.is_at_least_as_general_as_pattern('bw?w', 'bww?'))
-        
-        
         
 
 if __name__ == "__main__":
